@@ -1,0 +1,86 @@
+import pandas as pd
+import numpy as np
+
+# Try to import Plotly, handle error if not installed
+try:
+    import plotly.graph_objects as go
+    HAS_PLOTLY = True
+except ImportError:
+    HAS_PLOTLY = False
+
+def create_gauge_chart(probability):
+    """Creates a gauge chart for risk probability."""
+    if not HAS_PLOTLY:
+        return None
+
+    if probability < 0.4:
+        color = "green"
+    elif probability < 0.7:
+        color = "orange"
+    else:
+        color = "red"
+
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=probability * 100,
+        domain={'x': [0, 1], 'y': [0, 1]},
+        title={'text': "Dropout Probability", 'font': {'size': 24}},
+        number={'suffix': "%", 'font': {'color': color}},
+        gauge={
+            'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
+            'bar': {'color': color},
+            'bgcolor': "white",
+            'borderwidth': 2,
+            'bordercolor': "gray",
+            'steps': [
+                {'range': [0, 40], 'color': 'rgba(0, 255, 0, 0.1)'},
+                {'range': [40, 70], 'color': 'rgba(255, 165, 0, 0.1)'},
+                {'range': [70, 100], 'color': 'rgba(255, 0, 0, 0.1)'}
+            ],
+        }
+    ))
+    fig.update_layout(height=300, margin=dict(l=20, r=20, t=50, b=20))
+    return fig
+
+def create_comparison_chart(input_df, df_mean):
+    """
+    Creates a bar chart comparing the student's normalized values 
+    vs the average student for key numeric features.
+    """
+    # Select only numeric columns for comparison
+    numeric_cols = input_df.select_dtypes(include=[np.number]).columns
+    
+    # Pick top 5 columns with highest variance or specific interest
+    cols_to_plot = numeric_cols[:5] 
+    
+    if len(cols_to_plot) == 0:
+        return None
+
+    # Handle Plotly Chart
+    if HAS_PLOTLY:
+        student_vals = input_df[cols_to_plot].iloc[0].values
+        avg_vals = df_mean[cols_to_plot].values
+
+        fig = go.Figure(data=[
+            go.Bar(name='This Student', x=cols_to_plot, y=student_vals, marker_color='#3b82f6'),
+            go.Bar(name='Class Average', x=cols_to_plot, y=avg_vals, marker_color='#9ca3af')
+        ])
+        
+        fig.update_layout(
+            title="Student vs. Class Average (Key Metrics)",
+            barmode='group',
+            height=350,
+            margin=dict(l=20, r=20, t=50, b=20),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        return fig
+    
+    # Fallback: Return data for native Streamlit chart
+    else:
+        student_vals = input_df[cols_to_plot].iloc[0].values
+        avg_vals = df_mean[cols_to_plot].values
+        chart_data = pd.DataFrame({
+            "This Student": student_vals,
+            "Class Average": avg_vals
+        }, index=cols_to_plot)
+        return chart_data
