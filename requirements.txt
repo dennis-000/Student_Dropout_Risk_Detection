@@ -1,3 +1,4 @@
+
 streamlit
 numpy
 pandas
@@ -7,3 +8,5 @@ seaborn
 joblib
 xgboost
 imbalanced-learn
+plotly
+google-generativeai

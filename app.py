@@ -186,12 +186,12 @@ with col_right:
                 with tab2:
                     render_performance_tab(input_df)
 
-                # Tab 3: AI Advisor (UI Logic here, calculation in advisor.py)
+                # Tab 3: AI Advisor (Delegated to advisor.py)
                 with tab3:
                     st.markdown("### 🤖 Personalized AI Counselor")
                     st.info("This feature uses Google's Gemini AI to analyze the specific student profile.")
                     
-                    # 1. Try to get key from secrets first
+                    # 1. Try to get key from secrets
                     api_key = None
                     try:
                         api_key = st.secrets["GEMINI_API_KEY"]
@@ -202,15 +202,13 @@ with col_right:
                     if not api_key:
                         api_key = st.text_input("Enter Google Gemini API Key", type="password", help="If you set GEMINI_API_KEY in secrets.toml, this box will be skipped.")
                     else:
-                        st.success("API Key loaded securely from secrets.")
+                        st.success("✅ API Key loaded securely from secrets.")
 
                     if st.button("Generate AI Advice"):
-                        if not api_key:
-                            st.error("Please enter a valid Google API Key.")
-                        else:
-                            with st.spinner("Consulting AI Advisor..."):
-                                ai_response = get_ai_advice(input_df, api_key)
-                                st.markdown(ai_response)
+                        with st.spinner("Consulting AI Advisor..."):
+                            # Call the function from advisor.py
+                            ai_response = get_ai_advice(input_df, api_key)
+                            st.markdown(ai_response)
 
             except Exception as e:
                 st.error(f"Prediction Error: {e}")

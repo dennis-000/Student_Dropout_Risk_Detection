@@ -1,3 +1,3 @@
 myvenv
 .streamlit/
-__pycache__/
+# __pycache__/

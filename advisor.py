@@ -1,68 +1,86 @@
-import google.generativeai as genai
 import streamlit as st
 
 def get_ai_advice(input_df, api_key):
     """
     Generates personalized academic advice using Google's Gemini API.
-    
-    Args:
-        input_df (pd.DataFrame): The student's data.
-        api_key (str): The Google Gemini API key.
-        
-    Returns:
-        str: The advice text or error message.
+    Auto-switch version: Tries 'Flash' first, falls back to 'Pro'.
     """
-    if not api_key:
-        return "⚠️ Please enter a valid Google API Key to receive AI advice."
+    print("--- DEBUG: AI Advisor Called ---") # Look for this in your terminal
 
-    # Configure the API
+    # 1. Check for API Key
+    if not api_key:
+        return "⚠️ **Error:** API Key is missing."
+
+    # 2. Check for Library
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        return "⚠️ **Library Error:** Run `pip install google-generativeai` in your terminal."
+
+    # 3. Configure API
     try:
         genai.configure(api_key=api_key)
-        # Use a standard text model (Gemini 1.5 Flash is fast and effective)
-        model = genai.GenerativeModel('gemini-1.5-flash')
     except Exception as e:
-        return f"Error configuring API: {str(e)}"
+        return f"❌ **Config Error:** {str(e)}"
 
-    # Construct a readable profile string from the dataframe
+    # 4. Build Profile
     profile_summary = ""
-    
-    # We focus on the most relevant columns for advice
-    relevant_columns = [
-        "Curricular units 1st sem (grade)", 
-        "Curricular units 2nd sem (grade)",
-        "Curricular units 2nd sem (approved)",
-        "Tuition fees up to date",
-        "Debtor",
-        "Scholarship holder",
-        "Age at enrollment"
-    ]
-    
-    # Iterate through columns to build the text summary
-    for col in input_df.columns:
-        # Include relevant columns or columns containing 'grade' or 'sem'
-        if col in relevant_columns or "grade" in col.lower() or "sem" in col.lower():
-            val = input_df[col].iloc[0]
-            profile_summary += f"- {col}: {val}\n"
+    try:
+        # Extract meaningful data
+        for col in input_df.columns:
+            # Only include columns with specific keywords to keep prompt clean
+            if any(x in col.lower() for x in ['grade', 'sem', 'approved', 'tuition', 'debtor', 'scholarship', 'age']):
+                val = input_df[col].iloc[0]
+                profile_summary += f"- {col}: {val}\n"
+        print(f"DEBUG: Profile Summary created ({len(profile_summary)} chars)")
+    except Exception as e:
+        return f"❌ **Data Processing Error:** {str(e)}"
 
-    # Create the prompt for the AI
+    # 5. Prompt
     prompt = f"""
-    You are an expert academic advisor and student counselor at a university. 
-    Analyze the following student data and provide personalized, actionable advice to help them succeed and avoid dropping out.
+    Act as a university academic counselor. Analyze this student profile and provide 3 short, distinct, actionable tips to prevent dropout.
     
-    Student Profile Data:
+    Student Data:
     {profile_summary}
     
-    Instructions:
-    1. Identify the top 2 specific risk factors (e.g., declining grades, financial arrears, exam attendance).
-    2. Provide 3 specific, encouraging, and actionable steps they can take immediately.
-    3. If the student is doing well (High grades, fees paid), commend them and suggest how to maintain it.
-    4. Keep the tone supportive, professional, but serious about the risks.
-    5. Format the output with clear Markdown headings and bullet points.
+    Format:
+    ### 🧠 AI Counselor Analysis
+    * **Risk Assessment:** [One sentence summary]
+    * **Action 1:** [Tip]
+    * **Action 2:** [Tip]
+    * **Action 3:** [Tip]
     """
 
-    # Call the API
+    # 6. Call API with Fallback Logic
     try:
+        # Attempt 1: Try the newest Flash model (Fast & Cheap)
+        print("DEBUG: Attempting with gemini-1.5-flash...")
+        model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
+        print("DEBUG: Success with Flash model.")
         return response.text
-    except Exception as e:
-        return f"Error communicating with Gemini AI: {str(e)}\n\nMake sure your API key is correct and valid."
+
+    except Exception as e_flash:
+        print(f"DEBUG: Flash model failed ({str(e_flash)}). Switching to fallback...")
+        
+        try:
+            # Attempt 2: Fallback to Gemini Pro (Standard, widely available)
+            print("DEBUG: Attempting with gemini-pro...")
+            model = genai.GenerativeModel('gemini-pro')
+            response = model.generate_content(prompt)
+            print("DEBUG: Success with Pro model.")
+            return response.text
+            
+        except Exception as e_pro:
+            print(f"DEBUG: All models failed. Error: {str(e_pro)}")
+            # Return a detailed error to the UI
+            return f"""
+            ❌ **Connection Failed**
+            
+            Both model attempts failed. This usually means your API key is invalid or your library is very old.
+            
+            **Error Details:** {str(e_pro)}
+            
+            **Try this fix:**
+            Open your terminal and run: `pip install --upgrade google-generativeai`
+            """
